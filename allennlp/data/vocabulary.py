@@ -437,6 +437,52 @@ class Vocabulary(Registrable):
         """
         return cls()
 
+    @classmethod
+    def from_instances_and_pretrained_transformers(
+        cls,
+        instances: Iterable["adi.Instance"],
+        transformers: Dict[str, str],
+        min_count: Dict[str, int] = None,
+        max_vocab_size: Union[int, Dict[str, int]] = None,
+        non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
+        pretrained_files: Optional[Dict[str, str]] = None,
+        only_include_pretrained_words: bool = False,
+        tokens_to_add: Dict[str, List[str]] = None,
+        min_pretrained_embeddings: Dict[str, int] = None,
+        padding_token: Optional[str] = DEFAULT_PADDING_TOKEN,
+        oov_token: Optional[str] = DEFAULT_OOV_TOKEN,
+    ) -> "Vocabulary":
+        """
+        Constructs a vocabulary given a collection of `Instances` and some parameters. Then 
+        extends it with generated vocabularies from pretrained transformers. 
+        
+        The `instances` parameter does not get an entry in a typical AllenNLP configuration file, 
+        but other parameters do (if you want non-default parameters).
+        
+        # Parameters
+        
+        transformers : `dict[str, str]`
+            Dictionary mapping the namespaces (keys) to transformer model name (value). 
+        """
+        vocab = cls.from_instances(
+            instances=instances,
+            min_count=min_count,
+            max_vocab_size=max_vocab_size,
+            non_padded_namespaces=non_padded_namespaces,
+            pretrained_files=pretrained_files,
+            only_include_pretrained_words=only_include_pretrained_words,
+            tokens_to_add=tokens_to_add,
+            min_pretrained_embeddings=min_pretrained_embeddings,
+            padding_token=padding_token,
+            oov_token=oov_token,
+        )
+        
+        for namespace, model_name in transformers.items():
+            transformer_vocab = cls.from_pretrained_transformer(model_name=model_name, namespace=namespace)
+            vocab.extend_from_vocab(transformer_vocab)
+
+        return vocab
+
     def add_transformer_vocab(
         self, tokenizer: PreTrainedTokenizer, namespace: str = "tokens"
     ) -> None:
@@ -814,3 +860,6 @@ Vocabulary.register("from_instances", constructor="from_instances")(Vocabulary)
 Vocabulary.register("from_files", constructor="from_files")(Vocabulary)
 Vocabulary.register("extend", constructor="from_files_and_instances")(Vocabulary)
 Vocabulary.register("empty", constructor="empty")(Vocabulary)
+Vocabulary.register(
+    "from_instances_and_pretrained_transformers", constructor="from_instances_and_pretrained_transformers"
+)(Vocabulary)
